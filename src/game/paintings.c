@@ -1,4 +1,5 @@
 #include <PR/ultratypes.h>
+#include <libc/math.h>
 
 #include "sm64.h"
 #include "area.h"

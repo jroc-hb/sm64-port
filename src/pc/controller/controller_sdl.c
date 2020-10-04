@@ -1,11 +1,16 @@
-#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(TARGET_XBOX) || (!defined(_WIN32) && !defined(_WIN64))
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
 
+#ifdef TARGET_XBOX
+#include <SDL.h>
+extern int g_xbox_exit_button_state;
+#else
 #include <SDL2/SDL.h>
+#endif
 
 #include <ultra64.h>
 
@@ -92,6 +97,10 @@ static void controller_sdl_read(OSContPad *pad) {
         int stick_y = -lefty / 0x100;
         pad->stick_y = stick_y == 128 ? 127 : stick_y;
     }
+
+#ifdef TARGET_XBOX
+    g_xbox_exit_button_state = SDL_GameControllerGetButton(sdl_cntrl, SDL_CONTROLLER_BUTTON_BACK);
+#endif
 }
 
 struct ControllerAPI controller_sdl = {

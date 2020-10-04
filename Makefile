@@ -30,7 +30,12 @@ ifeq ($(TARGET_N64),0)
   NON_MATCHING := 1
   GRUCODE := f3dex2e
   TARGET_WINDOWS := 0
-  ifeq ($(TARGET_WEB),0)
+  ifeq ($(TARGET_XBOX), 1)
+    # No further detection needed
+    XBE_TITLE = sm64
+    NXDK_SDL = y
+    NXDK_DIR = $(CURDIR)/nxdk/
+  else ifeq ($(TARGET_WEB),0)
     ifeq ($(OS),Windows_NT)
       TARGET_WINDOWS := 1
     else
@@ -46,6 +51,8 @@ ifeq ($(TARGET_N64),0)
         ENABLE_DX11 ?= 1
       endif
     endif
+  else ifeq ($(TARGET_XBOX),1)
+    # Nothing to do, Xbox graphics enabled by default
   else
     # On others, default to OpenGL
     ENABLE_OPENGL ?= 1
@@ -110,7 +117,12 @@ endif
 
 TARGET := sm64.$(VERSION)
 VERSION_CFLAGS := -D$(VERSION_DEF)
-VERSION_ASFLAGS := --defsym $(VERSION_DEF)=1
+ifeq ($(TARGET_XBOX),1)
+  # Not supported by clang assembler
+  VERSION_ASFLAGS :=
+else
+  VERSION_ASFLAGS := --defsym $(VERSION_DEF)=1
+endif
 
 # Microcode
 
@@ -205,7 +217,11 @@ else
 ifeq ($(TARGET_WINDOWS),1)
 EXE := $(BUILD_DIR)/$(TARGET).exe
 else
+ifeq ($(TARGET_XBOX),1)
+EXE := main.exe
+else
 EXE := $(BUILD_DIR)/$(TARGET)
+endif
 endif
 endif
 ROM := $(BUILD_DIR)/$(TARGET).z64
@@ -347,6 +363,11 @@ endif
 # Segment elf files
 SEG_FILES := $(SEGMENT_ELF_FILES) $(ACTOR_ELF_FILES) $(LEVEL_ELF_FILES)
 
+ifeq ($(TARGET_XBOX), 1)
+  include $(NXDK_DIR)/Makefile
+  OBJS += $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
+endif
+
 ##################### Compiler Options #######################
 INCLUDE_CFLAGS := -I include -I $(BUILD_DIR) -I $(BUILD_DIR)/include -I src -I .
 ENDIAN_BITWIDTH := $(BUILD_DIR)/endian-and-bitwidth
@@ -394,7 +415,11 @@ endif
 INCLUDE_CFLAGS := -I include -I $(BUILD_DIR) -I $(BUILD_DIR)/include -I src -I .
 
 # Check code syntax with host compiler
-CC_CHECK := gcc
+ifeq ($(TARGET_XBOX),1)
+  CC_CHECK := clang
+else
+  CC_CHECK := gcc
+endif
 CC_CHECK_CFLAGS := -fsyntax-only -fsigned-char $(CC_CFLAGS) $(TARGET_CFLAGS) $(INCLUDE_CFLAGS) -std=gnu90 -Wall -Wextra -Wno-format-security -Wno-main -DNON_MATCHING -DAVOID_UB $(VERSION_CFLAGS) $(GRUCODE_CFLAGS)
 
 COMMON_CFLAGS = $(OPT_FLAGS) $(TARGET_CFLAGS) $(INCLUDE_CFLAGS) $(VERSION_CFLAGS) $(MATCH_CFLAGS) $(MIPSISET) $(GRUCODE_CFLAGS)
@@ -435,6 +460,14 @@ ifeq ($(TARGET_WINDOWS),1)
 else
   LD := $(CC)
 endif
+ifeq ($(TARGET_XBOX),1)
+  LD  = lld -flavor link
+  LIB = llvm-lib
+  AS  = clang
+  CC  = clang
+  CXX = clang++
+endif
+
 CPP := cpp -P
 OBJDUMP := objdump
 OBJCOPY := objcopy
@@ -453,6 +486,11 @@ ifeq ($(TARGET_WEB),1)
   PLATFORM_CFLAGS  := -DTARGET_WEB
   PLATFORM_LDFLAGS := -lm -no-pie -s TOTAL_MEMORY=20MB -g4 --source-map-base http://localhost:8080/ -s "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain']"
 endif
+ifeq ($(TARGET_XBOX),1)
+  PLATFORM_CFLAGS := -DTARGET_XBOX -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function $(NXDK_CFLAGS)
+  PLATFORM_LDLAGS :=
+endif
+
 
 PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY -DUSE_SYSTEM_MALLOC
 
@@ -485,9 +523,17 @@ endif
 GFX_CFLAGS += -DWIDESCREEN
 
 CC_CHECK := $(CC) -fsyntax-only -fsigned-char $(INCLUDE_CFLAGS) -Wall -Wextra -Wno-format-security -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) $(GRUCODE_CFLAGS)
+ifeq ($(TARGET_XBOX),1)
+CFLAGS := $(OPT_FLAGS) $(INCLUDE_CFLAGS) -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) $(GRUCODE_CFLAGS) -fno-strict-aliasing -fwrapv
+else
 CFLAGS := $(OPT_FLAGS) $(INCLUDE_CFLAGS) -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) $(GRUCODE_CFLAGS) -fno-strict-aliasing -fwrapv -march=native
+endif
 
 ASFLAGS := -I include -I $(BUILD_DIR) $(VERSION_ASFLAGS)
+
+ifeq ($(TARGET_XBOX),1)
+ASFLAGS := $(ASFLAGS) $(NXDK_ASFLAGS)
+endif
 
 LDFLAGS := $(PLATFORM_LDFLAGS) $(GFX_LDFLAGS)
 
@@ -796,8 +842,13 @@ $(BUILD_DIR)/%.o: $(BUILD_DIR)/%.c
 	@$(CC_CHECK) $(CC_CHECK_CFLAGS) -MMD -MP -MT $@ -MF $(BUILD_DIR)/$*.d $<
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+ifeq ($(TARGET_XBOX),1)
+$(BUILD_DIR)/%.o: %.s
+	$(AS) $(ASFLAGS) -c -o $@ $<
+else
 $(BUILD_DIR)/%.o: %.s
 	$(AS) $(ASFLAGS) -MD $(BUILD_DIR)/$*.d -o $@ $<
+endif
 
 ifeq ($(TARGET_N64),1)
 $(BUILD_DIR)/$(LD_SCRIPT): $(LD_SCRIPT)
@@ -821,10 +872,15 @@ $(BUILD_DIR)/$(TARGET).objdump: $(ELF)
 	$(OBJDUMP) -D $< > $@
 
 else
+
+ifeq ($(TARGET_XBOX),1)
+$(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
+else
 $(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
 	$(LD) -L $(BUILD_DIR) -o $@ $(O_FILES) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS)
 endif
 
+endif
 
 
 .PHONY: all clean distclean default diff test load libultra

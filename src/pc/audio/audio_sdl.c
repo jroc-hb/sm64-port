@@ -1,6 +1,6 @@
-#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(TARGET_XBOX) || !defined(_WIN32) && !defined(_WIN64)
 
-#ifdef __MINGW32__
+#if defined(TARGET_XBOX) || defined(__MINGW32__)
 #include "SDL.h"
 #else
 #include "SDL2/SDL.h"

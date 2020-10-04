@@ -4,6 +4,7 @@
 #include <PR/ultratypes.h>
 
 #include "types.h"
+#include <libc/math.h>
 
 /*
  * The sine and cosine tables overlap, but "#define gCosineTable (gSineTable +
@@ -31,6 +32,10 @@ extern f32 gCosineTable[];
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 #define sqr(x) ((x) * (x))
+
+#ifdef TARGET_XBOX // FIXME: Hack for name collision
+#define atan2f atan2f_sm64
+#endif
 
 void *vec3f_copy(Vec3f dest, Vec3f src);
 void *vec3f_set(Vec3f dest, f32 x, f32 y, f32 z);

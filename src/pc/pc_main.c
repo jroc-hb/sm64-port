@@ -18,6 +18,7 @@
 #include "gfx/gfx_glx.h"
 #include "gfx/gfx_sdl.h"
 #include "gfx/gfx_dummy.h"
+#include "gfx/gfx_xbox.h"
 
 #include "audio/audio_api.h"
 #include "audio/audio_wasapi.h"
@@ -33,6 +34,12 @@
 #include "compat.h"
 
 #define CONFIG_FILE "sm64config.txt"
+
+#ifdef TARGET_XBOX
+#include <hal/debug.h>
+#include <hal/video.h>
+#include <windows.h>
+#endif
 
 OSMesg D_80339BEC;
 OSMesgQueue gSIEventMesgQueue;
@@ -171,6 +178,9 @@ void main_func(void) {
     #else
         wm_api = &gfx_sdl;
     #endif
+#elif defined(TARGET_XBOX)
+    rendering_api = &gfx_xbox_renderer_api;
+    wm_api = &gfx_xbox_wm_api;
 #elif defined(ENABLE_GFX_DUMMY)
     rendering_api = &gfx_dummy_renderer_api;
     wm_api = &gfx_dummy_wm_api;
@@ -196,7 +206,7 @@ void main_func(void) {
         audio_api = &audio_alsa;
     }
 #endif
-#ifdef TARGET_WEB
+#if defined(TARGET_WEB) || defined(TARGET_XBOX)
     if (audio_api == NULL && audio_sdl.init()) {
         audio_api = &audio_sdl;
     }
@@ -222,7 +232,21 @@ void main_func(void) {
 #endif
 }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(TARGET_XBOX)
+#include <nxdk/mount.h>
+#include <winapi/fileapi.h>
+#include "xbox.h"
+int main(void)
+{
+    if (!nxIsDriveMounted('E')) {
+        nxMountDrive('E', "\\Device\\Harddisk0\\Partition1\\");
+    }
+    CreateDirectoryA(USER_DATA_TITLE_PATH, NULL);
+    CreateDirectoryA(USER_DATA_SAVE_PATH, NULL);
+    main_func();
+    return 0;
+}
+#elif defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 int WINAPI WinMain(UNUSED HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPSTR pCmdLine, UNUSED int nCmdShow) {
     main_func();
