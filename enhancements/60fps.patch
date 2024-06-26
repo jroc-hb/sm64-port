@@ -607,6 +607,19 @@ index 7a83b536..f4acc2de 100644
  };
  
  extern s8 gEnvFxMode;
+diff --git a/src/game/game_init.h b/src/game/game_init.h
+index 730faeb..4290b14 100644
+--- a/src/game/game_init.h
++++ b/src/game/game_init.h
+@@ -12,7 +12,7 @@
+ #ifdef USE_SYSTEM_MALLOC
+ #define GFX_POOL_SIZE 1
+ #else
+-#define GFX_POOL_SIZE 6400
++#define GFX_POOL_SIZE 64000
+ #endif
+ 
+ struct GfxPool {
 diff --git a/src/game/hud.c b/src/game/hud.c
 index 8d4daa54..7ce2b222 100644
 --- a/src/game/hud.c
@@ -1960,7 +1973,8 @@ index f4467a11..ccc048b7 100644
  void produce_one_frame(void) {
      gfx_start_frame();
      game_loop_one_iteration();
-@@ -95,6 +114,11 @@ void produce_one_frame(void) {
+@@ -98,6 +117,11 @@ void produce_one_frame(void) {
+     //printf("Audio samples before submitting: %d\n", audio_api->buffered());
      audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
      
      gfx_end_frame();
