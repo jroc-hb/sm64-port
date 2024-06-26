@@ -34,7 +34,7 @@ ifeq ($(TARGET_N64),0)
     # No further detection needed
     XBE_TITLE = sm64
     NXDK_SDL = y
-    NXDK_DIR = $(CURDIR)/nxdk/
+    NXDK_DIR = $(CURDIR)/../nxdk/
   else ifeq ($(TARGET_WEB),0)
     ifeq ($(OS),Windows_NT)
       TARGET_WINDOWS := 1
