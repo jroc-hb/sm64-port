@@ -73,3 +73,4 @@ sm64config.txt
 !/assets/**/*custom*.bin
 !/assets/**/*custom*/**/*.bin
 bin/default.xbe
+XBOX_BUILD

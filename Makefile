@@ -34,7 +34,6 @@ ifeq ($(TARGET_N64),0)
     # No further detection needed
     XBE_TITLE = sm64
     NXDK_SDL = y
-    NXDK_DIR = $(CURDIR)/../nxdk/
   else ifeq ($(TARGET_WEB),0)
     ifeq ($(OS),Windows_NT)
       TARGET_WINDOWS := 1
@@ -487,8 +486,17 @@ ifeq ($(TARGET_WEB),1)
   PLATFORM_LDFLAGS := -lm -no-pie -s TOTAL_MEMORY=20MB -g4 --source-map-base http://localhost:8080/ -s "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain']"
 endif
 ifeq ($(TARGET_XBOX),1)
-  PLATFORM_CFLAGS := -DTARGET_XBOX -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function $(NXDK_CFLAGS)
-  PLATFORM_LDLAGS :=
+  LEGACY_CFLAGS  = -target i386-pc-win32 -march=pentium3 \
+      -ffreestanding -nostdlib -fno-builtin \
+      -I$(NXDK_DIR)/lib -I$(NXDK_DIR)/lib/xboxrt/libc_extensions \
+      -I$(NXDK_DIR)/lib/hal \
+      -isystem $(NXDK_DIR)/lib/pdclib/include \
+      -I$(NXDK_DIR)/lib/pdclib/platform/xbox/include \
+      -I$(NXDK_DIR)/lib/winapi \
+      -I$(NXDK_DIR)/lib/xboxrt/vcruntime \
+      -Wno-ignored-attributes -DNXDK -D__STDC__=1
+  PLATFORM_CFLAGS := -DTARGET_XBOX -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function $(NXDK_CFLAGS) $(LEGACY_CFLAGS)
+  PLATFORM_LDFLAGS := -entry:WinMainCRTStartup
 endif
 
 
@@ -532,6 +540,7 @@ endif
 ASFLAGS := -I include -I $(BUILD_DIR) $(VERSION_ASFLAGS)
 
 ifeq ($(TARGET_XBOX),1)
+NXDK_ASFLAGS += -target i386-pc-win32 -march=pentium3 -nostdlib -I$(NXDK_DIR)/lib -I$(NXDK_DIR)/lib/xboxrt
 ASFLAGS := $(ASFLAGS) $(NXDK_ASFLAGS)
 endif
 
